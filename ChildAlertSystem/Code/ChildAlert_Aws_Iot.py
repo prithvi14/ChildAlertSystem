@@ -14,6 +14,7 @@ import datetime
 import os
 import logging, traceback
 import paho.mqtt.client as mqtt
+import socket
 fileDir = os.path.dirname(os.path.realpath('__file__'))
 
 IoT_protocol_name = "x-amzn-mqtt-ca"
@@ -30,6 +31,10 @@ handler.setFormatter(log_format)
 logger.addHandler(handler)
 DriverSeatSensrVal=queue.Queue(maxsize=10)
 ChildSeatSensrVal=queue.Queue(maxsize=10)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)         
+
+s.bind(('192.168.1.3', 80))
+s.listen(0)
 
 for x in range(10):
     DriverSeatSensrVal.put(255)
@@ -62,21 +67,25 @@ if __name__ == '__main__':
         message = "Hey you left you Child in the Car please Hurry"
         msgflag = False
         while True:
-            now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-            sens1 = random.choice([0, 0, 0, 0, 0]) # TODO Driver Weight shoul be Read from Api GetDriverWeightSensorVal
-            sens2 = random.choice([0, 4, 8, 10, 15]) # TODO Driver Weight shoul be Read from Api GetChildWeightSensorVal
-            DriverSeatSensrVal.get(sens1)
-            DriverSeatSensrVal.put(sens1)
-            ChildSeatSensrVal.get(sens2)
-            ChildSeatSensrVal.put(sens2)
-            DriverseatSensValAvg=(int(sum(DriverSeatSensrVal.queue)/len(DriverSeatSensrVal.queue)))
-            ChildseatSensValAvg=(int(sum(ChildSeatSensrVal.queue)/len(ChildSeatSensrVal.queue)))
-            print("DrvAvg && ChildAvg",DriverseatSensValAvg , ChildseatSensValAvg )
-            if DriverseatSensValAvg == 0 and ChildseatSensValAvg != 0:
-                if msgflag == False:
-                    print("Child alert")
-                    mqttc.publish(topic, message)
-                    msgflag = True
+            client, addr = s.accept()
+            print("Got a connection from %s" % str(addr))
+            if client:
+                content = client.recv(32)
+            #now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+            #sens1 = random.choice([0, 0, 0, 0, 0]) # TODO Driver Weight shoul be Read from Api GetDriverWeightSensorVal
+            #sens2 = random.choice([0, 4, 8, 10, 15]) # TODO Driver Weight shoul be Read from Api GetChildWeightSensorVal
+            #DriverSeatSensrVal.get(sens1)
+            #DriverSeatSensrVal.put(sens1)
+            #ChildSeatSensrVal.get(sens2)
+            #ChildSeatSensrVal.put(sens2)
+            #DriverseatSensValAvg=(int(sum(DriverSeatSensrVal.queue)/len(DriverSeatSensrVal.queue)))
+            #ChildseatSensValAvg=(int(sum(ChildSeatSensrVal.queue)/len(ChildSeatSensrVal.queue)))
+            #print("DrvAvg && ChildAvg",DriverseatSensValAvg , ChildseatSensValAvg )
+                if len(content) !=0:
+                   print("Child alert")
+                   #mqttc.publish(topic, message)
+                   print("Closing connection")
+                   client.close()
             time.sleep(1)
 
     except Exception as e:
